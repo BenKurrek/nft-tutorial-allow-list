@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, UnorderedSet};
+use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, UnorderedSet, LookupSet};
 use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
@@ -46,6 +46,9 @@ pub struct Contract {
 
     //keeps track of the metadata for the contract
     pub metadata: LazyOption<NFTContractMetadata>,
+
+    //keep track of accounts that can mint NFTs
+    pub allow_list: LookupSet<AccountId>
 }
 
 /// Helper structure for keys of the persistent collections.
@@ -59,6 +62,7 @@ pub enum StorageKey {
     TokensPerType,
     TokensPerTypeInner { token_type_hash: CryptoHash },
     TokenTypesLocked,
+    AllowList
 }
 
 #[near_bindgen]
@@ -106,9 +110,30 @@ impl Contract {
                 StorageKey::NFTContractMetadata.try_to_vec().unwrap(),
                 Some(&metadata),
             ),
+            allow_list: LookupSet::new(StorageKey::AllowList.try_to_vec().unwrap())
         };
 
         //return the Contract object
         this
+    }
+
+    pub fn allow_minting_access(&mut self, account_id: AccountId) {
+        assert_eq!(
+            env::predecessor_account_id(),
+            self.owner_id,
+            "Only owner can allow minting access",
+        );
+
+        self.allow_list.insert(&account_id);
+    }
+
+    pub fn revoke_minting_access(&mut self, account_id: AccountId) {
+        assert_eq!(
+            env::predecessor_account_id(),
+            self.owner_id,
+            "Only owner can revoke minting access",
+        );
+
+        self.allow_list.remove(&account_id);
     }
 }

@@ -138,6 +138,18 @@ impl NonFungibleTokenCore for Contract {
         //get the GAS attached to the call
         let attached_gas = env::prepaid_gas();
 
+        /*
+            make sure that the attached gas is greater than the minimum GAS for NFT transfer call.
+            This is to ensure that the cross contract call to nft_on_transfer won't cause a prepaid GAS error.
+            If this happens, the event will be logged in internal_transfer but the actual transfer logic will be
+            reverted due to the panic. This will result in the databases thinking the NFT belongs to the wrong person.
+        */
+        assert!(
+            attached_gas >= MIN_GAS_FOR_NFT_TRANSFER_CALL,
+            "You cannot attach less than {:?} Gas to nft_transfer_call",
+            MIN_GAS_FOR_NFT_TRANSFER_CALL
+        );
+
         //get the sender ID 
         let sender_id = env::predecessor_account_id();
 
